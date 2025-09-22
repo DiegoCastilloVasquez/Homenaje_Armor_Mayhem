@@ -485,20 +485,20 @@ function buclePrincipal() {
     ctx.fillStyle = '#2c3e50';
     ctx.fillRect(0, 0, lienzo.width, lienzo.height);
 
-    camara.x += (jugador.posicion.x - camara.x - lienzo.width / 2) * 0.1;
-    camara.y += (jugador.posicion.y - camara.y - lienzo.height / 2) * 0.1;
-
-    if (camara.x < 0) camara.x = 0;
-    if (camara.y < 0) camara.y = 0;
-    if (camara.x > MAPA_ANCHO - lienzo.width) camara.x = MAPA_ANCHO - lienzo.width;
-    if (camara.y > MAPA_ALTO - lienzo.height) camara.y = MAPA_ALTO - lienzo.height;
-
-    ctx.save();
-    ctx.translate(-camara.x, -camara.y);
-
-    plataformas.forEach(p => p.dibujar());
-
     if (estadoJuego.pantalla === 'jugando') {
+        camara.x += (jugador.posicion.x - camara.x - lienzo.width / 2) * 0.1;
+        camara.y += (jugador.posicion.y - camara.y - lienzo.height / 2) * 0.1;
+
+        if (camara.x < 0) camara.x = 0;
+        if (camara.y < 0) camara.y = 0;
+        if (camara.x > MAPA_ANCHO - lienzo.width) camara.x = MAPA_ANCHO - lienzo.width;
+        if (camara.y > MAPA_ALTO - lienzo.height) camara.y = MAPA_ALTO - lienzo.height;
+
+        ctx.save();
+        ctx.translate(-camara.x, -camara.y);
+
+        plataformas.forEach(p => p.dibujar());
+        
         jugador.actualizar();
         enemigo.actualizar();
 
