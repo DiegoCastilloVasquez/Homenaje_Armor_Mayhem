@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Homenaje a Armor Mayhem</title>
+        <link rel="stylesheet" href="estilos.css">
+    </head>
+    <body>
+        <div id="contenedorJuego">
+            <canvas id="lienzoJuego"></canvas>
+            <div id="pantallaInicio" class="pantalla-superpuesta">
+                <h1>ARMOR MAYHEM</h1>
+                <p>Un homenaje al clásico juego Flash. Lucha contra el bot y sé el primero en alcanzar 5 eliminaciones.</p>
+                <p><b>Controles:</b> [A] y [D] para moverse, [W] para saltar. Usa el ratón para apuntar y haz clic para disparar.</p>
+                <button id="botonJugar" class="boton">JUGAR</button>
+            </div>
+            <div id="pantallaGameOver" class="pantalla-superpuesta">
+                <h1 id="textoResultado"></h1>
+                <p>¡La batalla ha terminado!</p>
+                <button id="botonReiniciar" class="boton">JUGAR DE NUEVO</button>
+            </div>
+        </div>
+        <script src="script.js"></script>
+    </body>
+</html>
