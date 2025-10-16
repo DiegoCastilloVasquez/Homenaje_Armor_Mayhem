@@ -48,14 +48,15 @@ let jugador;
 let enemigo;
 
 class Entidad {
-    constructor({ x, y, ancho, alto, color, velocidadMax = 5 }) {
+    constructor({ x, y, ancho, alto, color, velocidadMax = 5, salud = 100 }) {
         this.posicion = { x, y };
         this.velocidad = { x: 0, y: 0 };
         this.ancho = ancho;
         this.alto = alto;
         this.colorBase = color;
         this.velocidadMax = velocidadMax;
-        this.salud = 100;
+        this.salud = salud;
+        this.saludMaxima = salud;
         this.enElSuelo = false;
         this.muerto = false;
         this.tiempoReaparicion = 0;
@@ -283,7 +284,7 @@ class Entidad {
 
     reaparecer() {
         this.muerto = false;
-        this.salud = 100;
+        this.salud = this.saludMaxima;
         const puntoReaparicion = puntosDeReaparicion[Math.floor(Math.random() * puntosDeReaparicion.length)];
         this.posicion.x = puntoReaparicion.x;
         this.posicion.y = puntoReaparicion.y;
@@ -474,8 +475,12 @@ const plataformas = [
 ];
 
 const puntosDeReaparicion = [
-    { x: 200, y: 100 }, { x: 960, y: 100 }, { x: MAPA_ANCHO - 200, y: 100 },
-    { x: 350, y: 450 }, { x: MAPA_ANCHO - 450, y: 450 }, { x: 150, y: 600 },
+    { x: 200, y: 100 },
+    { x: 960, y: 100 },
+    { x: MAPA_ANCHO - 200, y: 100 },
+    { x: 350, y: 450 },
+    { x: MAPA_ANCHO - 450, y: 450 },
+    { x: 150, y: 600 },
     { x: MAPA_ANCHO - 250, y: 600 },
 ];
 
@@ -498,7 +503,7 @@ function buclePrincipal() {
         ctx.translate(-camara.x, -camara.y);
 
         plataformas.forEach(p => p.dibujar());
-        
+
         jugador.actualizar();
         enemigo.actualizar();
 
@@ -567,7 +572,8 @@ function dibujarHUD() {
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.fillRect(10, 10, 200, 20);
     ctx.fillStyle = '#2ecc71';
-    ctx.fillRect(10, 10, jugador.salud * 2, 20);
+    const anchoBarraJugador = (jugador.salud / jugador.saludMaxima) * 200;
+    ctx.fillRect(10, 10, anchoBarraJugador, 20);
     ctx.strokeStyle = 'white';
     ctx.strokeRect(10, 10, 200, 20);
     ctx.fillStyle = 'white';
@@ -577,7 +583,8 @@ function dibujarHUD() {
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.fillRect(lienzo.width - 210, 10, 200, 20);
     ctx.fillStyle = '#e74c3c';
-    ctx.fillRect(lienzo.width - 210 + (200 - enemigo.salud * 2), 10, enemigo.salud * 2, 20);
+    const anchoBarraEnemigo = (enemigo.salud / enemigo.saludMaxima) * 200;
+    ctx.fillRect(lienzo.width - 210 + (200 - anchoBarraEnemigo), 10, anchoBarraEnemigo, 20);
     ctx.strokeStyle = 'white';
     ctx.strokeRect(lienzo.width - 210, 10, 200, 20);
 
@@ -597,11 +604,11 @@ function reiniciarJuego(partidaTerminada = true) {
     estadoJuego.frags.jugador = 0;
     estadoJuego.frags.enemigo = 0;
     jugador = new Jugador({
-        x: 100, y: 400, ancho: 40, alto: 60, color: '#3498db'
+        x: 100, y: 400, ancho: 40, alto: 60, color: '#3498db', salud: 100
     });
 
     enemigo = new Enemigo({
-        x: MAPA_ANCHO - 150, y: 400, ancho: 40, alto: 60, color: '#e74c3c'
+        x: MAPA_ANCHO - 150, y: 400, ancho: 40, alto: 60, color: '#e74c3c', salud: 100
     });
 
     proyectiles.length = 0;
