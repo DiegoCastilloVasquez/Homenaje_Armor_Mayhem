@@ -65,6 +65,43 @@ canvas {
     transform: scale(1.05);
 }
 
+#selectorDificultad {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+#selectorDificultad span {
+    font-size: 16px;
+    color: #bdc3c7;
+    letter-spacing: 2px;
+}
+
+.boton-dificultad {
+    font-size: 16px;
+    padding: 8px 20px;
+    background-color: #34495e;
+    border: 2px solid #2c3e50;
+    color: #bdc3c7;
+    cursor: pointer;
+    font-family: 'Consolas', 'Courier New', monospace;
+    transition: background-color 0.2s, transform 0.2s, color 0.2s;
+}
+
+.boton-dificultad:hover {
+    background-color: #4a6785;
+    transform: scale(1.05);
+    color: white;
+}
+
+.boton-dificultad.seleccionado {
+    background-color: #e74c3c;
+    border-color: #c0392b;
+    color: white;
+    font-weight: bold;
+}
+
 #pantallaGameOver {
     display: none;
 }

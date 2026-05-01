@@ -3,6 +3,7 @@ const ctx = lienzo.getContext('2d');
 
 const MAPA_ANCHO = 1920;
 const MAPA_ALTO = 800;
+const DELTA_TARGET = 1000 / 30; // 33.33ms por frame a 30fps
 
 function ajustarTamañoLienzo() {
     lienzo.width = window.innerWidth;
@@ -22,6 +23,44 @@ const GRAVEDAD = 0.6;
 const FRICCION_SUELO = 0.85;
 const FRICCION_AIRE = 0.95;
 const LIMITE_FRAGS = 5;
+
+let dificultadActual = 'medio';
+
+const CONFIG_DIFICULTAD = {
+    facil: {
+        velocidad: 1.5,
+        cadencia: 25,
+        precision: 0.6,
+        daño: 8,
+        reaccion: 0.7,
+        strafeIntervalo: 180,
+        saltoProbabilidad: 0.03,
+        esquiveProbabilidad: 0.4,
+        retiradaUmbral: 20
+    },
+    medio: {
+        velocidad: 2,
+        cadencia: 15,
+        precision: 0.8,
+        daño: 10,
+        reaccion: 0.5,
+        strafeIntervalo: 120,
+        saltoProbabilidad: 0.05,
+        esquiveProbabilidad: 0.6,
+        retiradaUmbral: 30
+    },
+    dificil: {
+        velocidad: 3.5,
+        cadencia: 8,
+        precision: 0.95,
+        daño: 12,
+        reaccion: 0.15,
+        strafeIntervalo: 70,
+        saltoProbabilidad: 0.1,
+        esquiveProbabilidad: 0.85,
+        retiradaUmbral: 40
+    }
+};
 
 const camara = { x: 0, y: 0 };
 
@@ -46,6 +85,8 @@ let proyectiles = [];
 let particulas = [];
 let jugador;
 let enemigo;
+
+let ultimoTiempo = 0;
 
 class Entidad {
     constructor({ x, y, ancho, alto, color, velocidadMax = 5, salud = 100 }) {
@@ -154,9 +195,9 @@ class Entidad {
         ctx.fillRect(inicioX + 30, inicioY + 1, 10, 4);
     }
 
-    actualizar() {
+    actualizar(delta) {
         if (this.muerto) {
-            this.tiempoReaparicion--;
+            this.tiempoReaparicion -= delta;
             if (this.tiempoReaparicion <= 0) {
                 this.reaparecer();
             }
@@ -164,24 +205,24 @@ class Entidad {
         }
 
         const friccion = this.enElSuelo ? FRICCION_SUELO : FRICCION_AIRE;
-        this.velocidad.x *= friccion;
+        this.velocidad.x *= Math.pow(friccion, delta);
 
         if (Math.abs(this.velocidad.x) < 0.1) this.velocidad.x = 0;
 
-        this.posicion.x += this.velocidad.x;
+        this.posicion.x += this.velocidad.x * delta;
         this.chequearColisionesHorizontales();
 
-        this.aplicarGravedad();
+        this.aplicarGravedad(delta);
         this.chequearColisionesVerticales();
 
-        this.arma.ultimoDisparo++;
+        this.arma.ultimoDisparo += delta;
 
         this.dibujar();
     }
 
-    aplicarGravedad() {
-        this.velocidad.y += GRAVEDAD;
-        this.posicion.y += this.velocidad.y;
+    aplicarGravedad(delta) {
+        this.velocidad.y += GRAVEDAD * delta;
+        this.posicion.y += this.velocidad.y * delta;
     }
 
     chequearColisionesHorizontales() {
@@ -300,15 +341,15 @@ class Jugador extends Entidad {
         this.apuntado = raton;
     }
 
-    actualizar() {
-        super.actualizar();
+    actualizar(delta) {
+        super.actualizar(delta);
         if (this.muerto) return;
 
         if (teclas.a.presionada && this.velocidad.x > -this.velocidadMax) {
-            this.velocidad.x -= 1;
+            this.velocidad.x -= 1 * delta;
         }
         if (teclas.d.presionada && this.velocidad.x < this.velocidadMax) {
-            this.velocidad.x += 1;
+            this.velocidad.x += 1 * delta;
         }
 
         if (raton.presionado) {
@@ -329,53 +370,216 @@ class Enemigo extends Entidad {
         this.apuntado = { x: 0, y: 0 };
         this.rangoDeVision = 500;
         this.rangoDeAtaque = 400;
-        this.tiempoDecision = 0;
+        this.contadorDecision = 0;
+        this.contadorStrafe = 0;
+        this.direccionStrafe = 1;
+        this.tiempoSinProyectil = 0;
+        this.ultimoProyectilCercano = null;
+
+        this.config = CONFIG_DIFICULTAD[dificultadActual];
+        this.velocidadMax = this.config.velocidad;
+        this.arma.cadencia = this.config.cadencia;
     }
 
-    actualizar() {
-        super.actualizar();
+    actualizar(delta) {
+        super.actualizar(delta);
         if (this.muerto) return;
 
         this.apuntado.x = jugador.posicion.x + jugador.ancho / 2;
         this.apuntado.y = jugador.posicion.y + jugador.alto / 2;
-        this.tomarDecisiones();
+        this.tiempoSinProyectil += delta;
+        this.tomarDecisiones(delta);
     }
 
-    tomarDecisiones() {
+    disparar() {
+        const config = CONFIG_DIFICULTAD[dificultadActual];
+        if (this.arma.ultimoDisparo > this.arma.cadencia) {
+            if (Math.random() > config.precision) {
+                // Fallo: dispara con desviación intencional
+                this.arma.ultimoDisparo = 0;
+                const velocidadProyectil = 15;
+                const centroX = this.posicion.x + this.ancho / 2;
+                const centroY = this.posicion.y + this.alto / 2;
+                const desviacion = (Math.random() - 0.5) * 0.4;
+                const angulo = Math.atan2(this.apuntado.y - centroY, this.apuntado.x - centroX) + desviacion;
+                const velX = Math.cos(angulo) * velocidadProyectil;
+                const velY = Math.sin(angulo) * velocidadProyectil;
+                this.arma.listaProyectiles.push(new Proyectil({
+                    x: centroX + Math.cos(angulo) * this.arma.longitudCanon,
+                    y: centroY + Math.sin(angulo) * this.arma.longitudCanon,
+                    velX, velY,
+                    color: 'yellow',
+                    propietario: this,
+                    daño: config.daño
+                }));
+                return;
+            }
+            super.disparar();
+            // Sobreescribir el daño del último proyectil
+            const ultimo = this.arma.listaProyectiles[this.arma.listaProyectiles.length - 1];
+            if (ultimo) ultimo.daño = config.daño;
+        }
+    }
+
+    tomarDecisiones(delta) {
+        const config = CONFIG_DIFICULTAD[dificultadActual];
         const distanciaX = jugador.posicion.x - this.posicion.x;
         const distanciaY = jugador.posicion.y - this.posicion.y;
         const distanciaTotal = Math.sqrt(distanciaX * distanciaX + distanciaY * distanciaY);
 
         if (jugador.muerto) {
-            if (this.enElSuelo && Math.random() < 0.005) {
-                this.velocidad.y = -10;
-            }
-            if (this.tiempoDecision % 120 === 0) {
-                this.velocidad.x = Math.random() > 0.5 ? 2 : -2;
-            }
-            this.tiempoDecision++;
+            this.comportamientoInactivo(delta);
             return;
         }
 
-        if (distanciaTotal < this.rangoDeVision) {
-            if (distanciaX > this.ancho / 2) {
-                this.velocidad.x = 2;
-            } else if (distanciaX < -this.ancho / 2) {
-                this.velocidad.x = -2;
-            } else {
-                this.velocidad.x = 0;
-            }
-
-            const estaBloqueado = this.velocidad.x === 0 && Math.abs(distanciaX) > 10;
-            if (this.enElSuelo && (distanciaY < -50 || estaBloqueado)) {
-                if (Math.random() < 0.05) this.velocidad.y = -14;
-            }
-
-            if (distanciaTotal < this.rangoDeAtaque) {
-                this.disparar();
-            }
-        } else {
+        if (distanciaTotal > this.rangoDeVision) {
+            // Fuera de rango: patrulla relajada
             this.velocidad.x *= 0.8;
+            return;
+        }
+
+        // --- ESQUIVE de proyectiles ---
+        this.intentarEsquivar(delta, config);
+
+        // --- RETIRADA ESTRATÉGICA (salud baja) ---
+        if (this.salud < this.saludMaxima * (config.retiradaUmbral / 100) && distanciaTotal < 300) {
+            this.comportamientoRetirada(distanciaX, delta);
+            return;
+        }
+
+        // --- PERSECUCIÓN AGRESIVA (jugador con poca salud) ---
+        if (jugador.salud < jugador.saludMaxima * 0.3 && distanciaTotal < 400) {
+            this.comportamientoAgresivo(distanciaX, distanciaY, distanciaTotal, delta, config);
+            return;
+        }
+
+        // --- COMPORTAMIENTO PRINCIPAL: Strafing + Ataque ---
+        this.comportamientoCombate(distanciaX, distanciaY, distanciaTotal, delta, config);
+    }
+
+    comportamientoInactivo(delta) {
+        if (this.enElSuelo && Math.random() < 0.005 * delta) {
+            this.velocidad.y = -10;
+        }
+        this.contadorDecision += delta;
+        if (this.contadorDecision >= 120) {
+            this.contadorDecision -= 120;
+            this.velocidad.x = Math.random() > 0.5 ? this.config.velocidad * 0.5 : -this.config.velocidad * 0.5;
+        }
+    }
+
+    intentarEsquivar(delta, config) {
+        const proyectilMasCercano = this.encontrarProyectilCercano();
+        if (!proyectilMasCercano || Math.random() > config.esquiveProbabilidad * delta * 0.1) return;
+
+        const distAlProyectil = Math.sqrt(
+            (proyectilMasCercano.posicion.x - this.posicion.x) ** 2 +
+            (proyectilMasCercano.posicion.y - this.posicion.y) ** 2
+        );
+
+        if (distAlProyectil < 150) {
+            // El proyectil viene por la derecha -> moverse izquierda, etc.
+            if (proyectilMasCercano.velocidad.x > 0 && this.posicion.x < proyectilMasCercano.posicion.x) {
+                this.velocidad.x = -this.config.velocidad * 1.5;
+            } else if (proyectilMasCercano.velocidad.x < 0 && this.posicion.x > proyectilMasCercano.posicion.x) {
+                this.velocidad.x = this.config.velocidad * 1.5;
+            }
+
+            // Saltar para esquivar si el proyectil viene a nivel del torso
+            const difY = Math.abs(proyectilMasCercano.posicion.y - (this.posicion.y + this.alto / 2));
+            if (difY < 40 && this.enElSuelo && Math.random() < 0.3) {
+                this.velocidad.y = -12;
+            }
+
+            this.tiempoSinProyectil = 0;
+        }
+    }
+
+    encontrarProyectilCercano() {
+        let masCercano = null;
+        let menorDistancia = 200;
+
+        for (const p of proyectiles) {
+            if (p.propietario === this) continue;
+            const dx = p.posicion.x - this.posicion.x;
+            const dy = p.posicion.y - this.posicion.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            // Solo proyectiles que se acercan al enemigo
+            const seAcerca = (dx * p.velocidad.x < 0) || (dy * p.velocidad.y < 0);
+            if (dist < menorDistancia && seAcerca) {
+                menorDistancia = dist;
+                masCercano = p;
+            }
+        }
+        return masCercano;
+    }
+
+    comportamientoRetirada(distanciaX, delta) {
+        // Retrocede mientras dispara
+        if (distanciaX > 0) {
+            this.velocidad.x = -this.config.velocidad * 0.8;
+        } else {
+            this.velocidad.x = this.config.velocidad * 0.8;
+        }
+
+        // Salta si está contra una pared
+        if (Math.abs(this.velocidad.x) < 0.5 && this.enElSuelo) {
+            this.velocidad.y = -12;
+        }
+
+        this.disparar();
+    }
+
+    comportamientoAgresivo(distanciaX, distanciaY, distanciaTotal, delta, config) {
+        const direccion = distanciaX > 0 ? 1 : -1;
+        this.velocidad.x = direccion * config.velocidad * 1.3;
+
+        // Salto ofensivo hacia el jugador
+        if (this.enElSuelo && (distanciaY < -60 || Math.abs(distanciaX) > 200) && Math.random() < config.saltoProbabilidad * delta * 2) {
+            this.velocidad.y = -14;
+        }
+
+        this.disparar();
+    }
+
+    comportamientoCombate(distanciaX, distanciaY, distanciaTotal, delta, config) {
+        // --- STRAFING ---
+        this.contadorStrafe += delta;
+        if (this.contadorStrafe >= config.strafeIntervalo) {
+            this.contadorStrafe -= config.strafeIntervalo;
+            // Alternar dirección aleatoriamente, pero con tendencia a moverse hacia el jugador
+            if (Math.random() < 0.4) {
+                this.direccionStrafe *= -1;
+            }
+        }
+
+        const rangoDisparoOptimo = 250;
+        const cercaDelJugador = distanciaTotal < rangoDisparoOptimo;
+        const lejosDelJugador = distanciaTotal > rangoDisparoOptimo + 100;
+
+        if (lejosDelJugador) {
+            // Acercarse al jugador
+            const direccion = distanciaX > 0 ? 1 : -1;
+            this.velocidad.x = direccion * config.velocidad;
+        } else if (cercaDelJugador) {
+            // Strafear lateralmente
+            this.velocidad.x = this.direccionStrafe * config.velocidad * 0.7;
+        } else {
+            // Distancia óptima: strafe con movimiento hacia el jugador
+            const direccionJugador = distanciaX > 0 ? 1 : -1;
+            this.velocidad.x = (this.direccionStrafe * config.velocidad * 0.5) + (direccionJugador * config.velocidad * 0.3);
+        }
+
+        // --- SALTO OFENSIVO Y DE NAVEGACIÓN ---
+        const estaBloqueado = Math.abs(this.velocidad.x) < 0.5 && Math.abs(distanciaX) > 30;
+        if (this.enElSuelo && (distanciaY < -50 || estaBloqueado) && Math.random() < config.saltoProbabilidad * delta) {
+            this.velocidad.y = -14;
+        }
+
+        // --- DISPARAR ---
+        if (distanciaTotal < this.rangoDeAtaque) {
+            this.disparar();
         }
     }
 }
@@ -414,10 +618,10 @@ class Proyectil {
         ctx.closePath();
     }
 
-    actualizar() {
+    actualizar(delta) {
         this.dibujar();
-        this.posicion.x += this.velocidad.x;
-        this.posicion.y += this.velocidad.y;
+        this.posicion.x += this.velocidad.x * delta;
+        this.posicion.y += this.velocidad.y * delta;
     }
 }
 
@@ -445,13 +649,13 @@ class Particula {
         ctx.restore();
     }
 
-    actualizar() {
+    actualizar(delta) {
         this.dibujar();
-        this.velocidad.y += GRAVEDAD * 0.1;
-        this.posicion.x += this.velocidad.x;
-        this.posicion.y += this.velocidad.y;
-        this.vida -= 2;
-        this.opacidad -= 1 / 50;
+        this.velocidad.y += GRAVEDAD * 0.1 * delta;
+        this.posicion.x += this.velocidad.x * delta;
+        this.posicion.y += this.velocidad.y * delta;
+        this.vida -= 2 * delta;
+        this.opacidad = this.vida / 100;
     }
 }
 
@@ -484,8 +688,17 @@ const puntosDeReaparicion = [
     { x: MAPA_ANCHO - 250, y: 600 },
 ];
 
-function buclePrincipal() {
+function buclePrincipal(timestamp) {
     requestAnimationFrame(buclePrincipal);
+
+    if (ultimoTiempo === 0) {
+        ultimoTiempo = timestamp;
+    }
+
+    const tiempoTranscurrido = timestamp - ultimoTiempo;
+    ultimoTiempo = timestamp;
+
+    const delta = Math.min(tiempoTranscurrido / DELTA_TARGET, 3.0);
 
     ctx.fillStyle = '#2c3e50';
     ctx.fillRect(0, 0, lienzo.width, lienzo.height);
@@ -504,12 +717,12 @@ function buclePrincipal() {
 
         plataformas.forEach(p => p.dibujar());
 
-        jugador.actualizar();
-        enemigo.actualizar();
+        jugador.actualizar(delta);
+        enemigo.actualizar(delta);
 
         for (let i = proyectiles.length - 1; i >= 0; i--) {
             const p = proyectiles[i];
-            p.actualizar();
+            p.actualizar(delta);
 
             if (p.posicion.x < 0 || p.posicion.x > MAPA_ANCHO || p.posicion.y < 0 || p.posicion.y > MAPA_ALTO) {
                 proyectiles.splice(i, 1);
@@ -550,18 +763,18 @@ function buclePrincipal() {
 
         for (let i = particulas.length - 1; i >= 0; i--) {
             const p = particulas[i];
-            p.actualizar();
+            p.actualizar(delta);
             if (p.vida <= 0) {
                 particulas.splice(i, 1);
             }
         }
 
-    } else if (jugador && enemigo) {
+        ctx.restore();
+
+    } else if (estadoJuego.pantalla !== 'inicio' && jugador && enemigo) {
         jugador.dibujar();
         enemigo.dibujar();
     }
-
-    ctx.restore();
 
     if (estadoJuego.pantalla === 'jugando') {
         dibujarHUD();
@@ -613,6 +826,7 @@ function reiniciarJuego(partidaTerminada = true) {
 
     proyectiles.length = 0;
     particulas.length = 0;
+    ultimoTiempo = 0;
 
     raton.presionado = false;
 
@@ -626,6 +840,14 @@ botonJugar.addEventListener('click', iniciarJuego);
 
 botonReiniciar.addEventListener('click', () => {
     reiniciarJuego(true);
+});
+
+document.querySelectorAll('.boton-dificultad').forEach(boton => {
+    boton.addEventListener('click', () => {
+        document.querySelectorAll('.boton-dificultad').forEach(b => b.classList.remove('seleccionado'));
+        boton.classList.add('seleccionado');
+        dificultadActual = boton.dataset.dificultad;
+    });
 });
 
 window.addEventListener('keydown', (evento) => {
@@ -660,4 +882,4 @@ window.addEventListener('mouseup', () => {
     raton.presionado = false;
 });
 
-buclePrincipal();
+buclePrincipal(0);
