@@ -1,33 +1,55 @@
 <!DOCTYPE html>
 <html lang="es">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Homenaje a Armor Mayhem</title>
-        <link rel="icon" type="image/png" href="favicon.png">
-        <link rel="stylesheet" href="estilos.css">
-    </head>
-    <body>
-        <div id="contenedorJuego">
-            <canvas id="lienzoJuego"></canvas>
-            <div id="pantallaInicio" class="pantalla-superpuesta">
-                <h1>ARMOR MAYHEM</h1>
-                <p>Un homenaje al clásico juego Flash. Lucha contra el bot y sé el primero en alcanzar 5 eliminaciones.</p>
-                <p><b>Controles:</b> [A] y [D] para moverse, [W] para saltar. Usa el ratón para apuntar y haz clic para disparar.</p>
-                <div id="selectorDificultad">
-                    <span>DIFICULTAD:</span>
-                    <button id="dificil" class="boton-dificultad" data-dificultad="dificil">Difícil</button>
-                    <button id="medio" class="boton-dificultad seleccionado" data-dificultad="medio">Medio</button>
-                    <button id="facil" class="boton-dificultad" data-dificultad="facil">Fácil</button>
-                </div>
-                <button id="botonJugar" class="boton">JUGAR</button>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homenaje Armor Mayhem</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+    <div id="pantallaInicio" class="pantalla-superpuesta">
+        <h1>Armor Mayhem</h1>
+        <h2>Homenaje</h2>
+        <div id="selectorModo">
+            <h3>Modo de juego</h3>
+            <button class="boton-modo seleccionado" data-modo="1j">1 Jugador</button>
+            <button class="boton-modo" data-modo="2j">2 Jugadores</button>
+        </div>
+        <div id="selectorDificultad">
+            <h3>Dificultad</h3>
+            <button class="boton-dificultad" data-dificultad="facil">Fácil</button>
+            <button class="boton-dificultad seleccionado" data-dificultad="medio">Medio</button>
+            <button class="boton-dificultad" data-dificultad="dificil">Difícil</button>
+        </div>
+        <div id="controlesInfo">
+            <h3>Controles</h3>
+            <div id="controlesJ1">
+                <p><strong>P1</strong></p>
+                <p>Moverse: <span>[A] [D]</span></p>
+                <p>Saltar: <span>[W]</span></p>
+                <p>Apuntar: <span id="p1ApuntarInfo">Ratón</span></p>
+                <p>Disparar: <span id="p1DispararInfo">Clic izquierdo</span></p>
             </div>
-            <div id="pantallaGameOver" class="pantalla-superpuesta">
-                <h1 id="textoResultado"></h1>
-                <p>¡La batalla ha terminado!</p>
-                <button id="botonReiniciar" class="boton">JUGAR DE NUEVO</button>
+            <div id="controlesJ2">
+                <p><strong>P2</strong></p>
+                <p>Moverse: <span>[J] [L]</span></p>
+                <p>Saltar: <span>[I]</span></p>
+                <p>Apuntar: <span>[U] antihorario / [O] horario</span></p>
+                <p>Disparar: <span>[K]</span></p>
             </div>
         </div>
-        <script src="script.js"></script>
-    </body>
+        <button id="botonJugar" class="boton">JUGAR</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="pantallaGameOver" class="pantalla-superpuesta">
+        <h1 id="textoResultado"></h1>
+        <p id="textoPuntos"></p>
+        <button id="botonReiniciar" class="boton">VOLVER A JUGAR</button>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
 </html>
